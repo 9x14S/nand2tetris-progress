@@ -1,0 +1,53 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/03/a/RAM64.hdl
+
+/**
+ * Memory of 64 registers, each 16 bit-wide. Out holds the value
+ * stored at the memory location specified by address. If load==1, then 
+ * the in value is loaded into the memory location specified by address 
+ * (the loaded value will be emitted to out from the next time step onward).
+ */
+
+CHIP RAM64 {
+    IN in[16], load, address[6];
+    OUT out[16];
+
+    PARTS:
+    // Base DMux, divides into two 4-register halves
+    DMux(in=load, sel=address[5], a=outa, b=outb);
+
+    // Second level DMux, divides into two 2-register halves
+    DMux(in=outa, sel=address[4], a=outfsda, b=outfsdb);
+
+    DMux(in=outfsda, sel=address[3], a=outa3f, b=outb3f);
+    RAM8(in=in, load=outa3f, address=address[0..2], out=out1);
+    RAM8(in=in, load=outb3f, address=address[0..2], out=out2);
+    
+    DMux(in=outfsdb, sel=address[3], a=outa3s, b=outb3s);
+    RAM8(in=in, load=outa3s, address=address[0..2], out=out3);
+    RAM8(in=in, load=outb3s, address=address[0..2], out=out4);
+    
+
+    // Other second level DMux
+    DMux(in=outb, sel=address[4], a=outssda, b=outssdb);
+
+    DMux(in=outssda, sel=address[3], a=outa3t, b=outb3t);
+    RAM8(in=in, load=outa3t, address=address[0..2], out=out5);
+    RAM8(in=in, load=outb3t, address=address[0..2], out=out6);
+    
+    DMux(in=outssdb, sel=address[3], a=outa3fr, b=outb3fr);
+    RAM8(in=in, load=outa3fr, address=address[0..2], out=out7);
+    RAM8(in=in, load=outb3fr, address=address[0..2], out=out8);
+
+    Mux16(a=out1, b=out2, sel=address[3], out=sout1);
+    Mux16(a=out3, b=out4, sel=address[3], out=sout2);
+    Mux16(a=out5, b=out6, sel=address[3], out=sout3);
+    Mux16(a=out7, b=out8, sel=address[3], out=sout4);
+    
+    Mux16(a=sout1, b=sout2, sel=address[4], out=tout1);    
+    Mux16(a=sout3, b=sout4, sel=address[4], out=tout2);
+
+    Mux16(a=tout1, b=tout2, sel=address[5], out=out);
+}
