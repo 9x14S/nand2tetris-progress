@@ -49,10 +49,9 @@ int comp(char *compute)
 
     int arrsize = 0;
     bool aiszero = true;
-    for (; compute[arrsize] != '\0' && compute[arrsize] != ';'; arrsize++)
-    {
-        if (compute[arrsize] == 'M') aiszero = false;
-    }
+
+    // Get the length of the instruction and check if it uses M or A registers
+    for (; compute[arrsize] != '\0' && compute[arrsize] != ';'; arrsize++) if (compute[arrsize] == 'M') aiszero = false;
 
     switch (compute[0])
     {
@@ -78,8 +77,6 @@ int comp(char *compute)
     }
 
     bool thirdchar = false;
-    bool pos = false;
-    bool and = false;
     if (arrsize >= 2)
     {
         if (compute[1] == '\0') return (0 - compute[0]);
@@ -99,10 +96,8 @@ int comp(char *compute)
                 if (compute[0] == '-') retval += 2;
                 break;
             case '+' :
-                pos = true;
             case '-' :
             case '&' :
-                and = true;
             case '|' :
                 thirdchar = true;
                 break;
@@ -112,12 +107,12 @@ int comp(char *compute)
         }
     }
 
-    if (thirdchar && arrsize == 3)
+    if (thirdchar && arrsize >= 3)
     {
         switch (compute[2])
         {
             case '1' :
-                if (pos)
+                if (compute[1] == '+')
                 {
                     switch (compute[0])
                     {
@@ -144,21 +139,21 @@ int comp(char *compute)
                 }
             case 'A' :
             case 'M' :
-                if (pos && !and) 
+                switch (compute[1])
                 {
-                    retval = 2;
-                }
-                else if (!pos && !and)
-                {
-                    retval = 19;
-                }
-                else if (!and) 
-                {
-                    retval = 21;
+                    case '+' :
+                        retval = 2;
+                        break;
+                    case '|' :
+                        retval = 21;
+                        break;
+                    case '-' :
+                        retval = 19;
+                        break;
                 }
                 break;
             case 'D' :
-                if (!pos)
+                if (compute[1] == '-')
                 {
                     retval = 7;
                     break;
@@ -175,6 +170,8 @@ int comp(char *compute)
                 }
         }
     }
+
+    // printf("DEBUG: Comp %s gave %d\n", compute, retval);
 
     if (!aiszero) retval += 64;
     return retval;
@@ -218,64 +215,46 @@ int dest(char *destination)
 int jump(char *jumping)
 {
     int retjump = 0;
-    if (!(jumping[0] == 'J'))
+    if (jumping[0] != 'J' || strlen(jumping) < 3)
     {
-        retjump = -1;
-        printf("Jump error: \"%s\" is not a jump statement\n", jumping);
+        retjump = 0;
         return retjump;
     }
 
-    jumping = jumping + sizeof(char);
-
-    switch (jumping[0])
-    {
-        case 'L' :
-        case 'N' : 
-        case 'M' : 
-            retjump += 4;
-            break;
-        case 'G' :
-        case 'E' :
-            break;
-        default :
-            retjump -= 1000;
-    }
-
-    switch (jumping[0]) 
+    switch (jumping[2]) 
     {
         case 'E' :
             switch (jumping[1])
             {
                 case 'G' :
-                    retjump += 3;
+                    retjump = 3;
                     break;
                 case 'L' :
-                    retjump += 2;
+                    retjump = 6;
                     break;
                 case 'N' : 
-                    retjump += 1;
+                    retjump = 5;
                     break;
                 default :
-                    retjump -= 1000;
+                    retjump = 0 - jumping[1];
             }
         case 'T' :
-            switch (jumping[1])
-            {
-                case 'G' :
-                    retjump += 1;
-                    break;
-                default : 
-                    retjump -= 1000;
-            }
-        case 'Q' :
-            retjump += 2;
+            if (jumping[1] == 'G') retjump = 1;
+            else if (jumping[1] == 'L') retjump = 4;
             break;
-        case 'M' : 
-            retjump += 3;
+        case 'Q' :
+            if (jumping[1] == 'E') retjump = 2;
+            break;
+        case 'P' : 
+            if (jumping[1] == 'M') retjump = 7;
             break;
         default :
-            retjump -= 1000;
+            retjump = 0 - jumping[2];
     }
+
+    if (retjump == 0) retjump = 0 - jumping[2];
+    printf("DEBUG: Jump %s gave %d\n", jumping, retjump);
+
     return retjump;
 }
 
@@ -320,9 +299,10 @@ char *cinst(char *inst, int line)
     if (jumpf)
     {
         j = jump(jumpf + sizeof(char));
-        if (j < 0)
+        if (j <= 0)
         {
-            printf("Error: Jump syntax error -> \"%s\" in line %d\n", jumpf, line);
+            if (j != 0) printf("Error: Jump syntax \"%c\" error -> \"%s\" in line %d\n", 0 - j, jumpf, line);
+            else printf("Error: Jump syntax error -> \"%s\" in line %d\n", jumpf, line);
             return NULL;
         }
     }

@@ -199,8 +199,9 @@ int second_pass(FILE *file, struct v *data)
                 break;
             case '@' :
                 int max = 0;
+                lines++;
                 bool switch_flag = false;
-                while ((inst_buffer[max] = fgetc(file)) != EOF && max < 6) 
+                while ((inst_buffer[max] = fgetc(file)) != EOF && max < 64) 
                 {
                     switch (inst_buffer[max])
                     {
@@ -259,9 +260,13 @@ int second_pass(FILE *file, struct v *data)
                 }
                 last_char = inst_buffer[max - 1];
                 break;
+            case ' ' :
+                break;
             default :
                 int i = 0;
+                lines++;
             
+                // Load data in the instruction buffer 
                 while (buffer != '/' && buffer != '\n' && buffer != EOF && i < 64) 
                 {
                     if (buffer != ' ') 
@@ -276,10 +281,27 @@ int second_pass(FILE *file, struct v *data)
                 inst_buffer[i] = '\0';
                 if (buffer != '/' && buffer != EOF && buffer != '(') 
                 {
-                    lines++; 
+                    line_count++; 
                 }
 
-                else if (inst_buffer != NULL && inst_buffer[0] != '\0') 
+                if (inst_buffer[0] == '(')
+                {
+                    char *otherpar = strrchr(inst_buffer + 1, ')');
+                    *otherpar = '\0';
+                    int hashed = hash(inst_buffer + 1);
+                    if (hash_map[hashed] != 0)
+                    {
+                        ainst = inttob(hash_map[hashed], 16);
+                        fprintf(outfile, "%s\n", ainst);
+                        free(ainst);
+                    }
+                    else
+                    {
+                        hash_map[hashed] = ram_location;
+                        ram_location++;
+                    }
+                }
+                else if (inst_buffer[0] != '\0') 
                 {
                     char *cinstp = cinst(inst_buffer, line_count);
                     fprintf(outfile, "%s\n", cinstp);
@@ -295,5 +317,6 @@ int second_pass(FILE *file, struct v *data)
     outfile_err:
         retval = 6;
     }
+    printf("Line count: %d, meaningful line count: %d\n", lines, line_count);
     return retval;
 }

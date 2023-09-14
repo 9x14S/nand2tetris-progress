@@ -71,6 +71,7 @@ free_data:
 emptyreturn:
     free(data.empty);
 justreturn:
+    puts("Done.");
     return return_value;
 }
 
