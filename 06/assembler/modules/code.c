@@ -4,6 +4,7 @@
 char *inttob(int num, int width)
 {
     int max = (int) pow(2, width);
+
     if (width < 3 || num > max)
     {
         puts("Error: Width provided too small");
@@ -124,19 +125,19 @@ int comp(char *compute)
                             break;
                     }
                 }
-                else 
+                else if (compute[1] == '-')
                 {
                     switch (compute[0])
                     {
-                    case 'D':
-                        retval = 14;
-                        break;
-                    
-                    default:
-                        retval = 50;
-                        break;
+                        case 'D':
+                            retval = 14;
+                            break;
+                        default:
+                            retval = 50;
+                            break;
                     }
                 }
+                break;
             case 'A' :
             case 'M' :
                 switch (compute[1])
@@ -149,6 +150,9 @@ int comp(char *compute)
                         break;
                     case '-' :
                         retval = 19;
+                        break;
+                    case '&' :
+                        retval = 0;
                         break;
                 }
                 break;
@@ -168,6 +172,7 @@ int comp(char *compute)
                     puts("COMP ERROR AT THIRD SWITCH");
                     return (0 - compute[2]);
                 }
+                break;
         }
     }
 
@@ -238,6 +243,7 @@ int jump(char *jumping)
                 default :
                     retjump = 0 - jumping[1];
             }
+            break;
         case 'T' :
             if (jumping[1] == 'G') retjump = 1;
             else if (jumping[1] == 'L') retjump = 4;
@@ -253,7 +259,8 @@ int jump(char *jumping)
     }
 
     if (retjump == 0) retjump = 0 - jumping[2];
-    printf("DEBUG: Jump %s gave %d\n", jumping, retjump);
+
+    // printf("DEBUG: Jump %s gave %d\n", jumping, retjump);
 
     return retjump;
 }

@@ -38,20 +38,23 @@ void set_defs()
         hash_map[hash(predefs[i])] = i;
     }
 
-    hash_map[hash("SCREEN\0")] = 16348;
+    hash_map[hash("SCREEN\0")] = 16384;
     hash_map[hash("KBD\0")] = MAX_RAM;
     return;
 }
 
-// Shitty hash function - needs some optimizations.
+// Shitty hash function - works for now. 
+// TODO: Keep an eye on it, it is a source of hash collisions 
 int hash(char *string)
 {
     int i = 0, hash_value = 0;
     for (; string[i] != '\0'; i++)
     {
-        hash_value += string[i];
+        srand(i);
+        hash_value += string[i] * rand();
     }
-    hash_value *= i;
+    srand(i);
+    hash_value *= rand();
     hash_value %= MAX_RAM;
     if (hash_value < 0) hash_value = 0 - hash_value;
 
@@ -74,7 +77,9 @@ int first_pass(FILE *file)
 
     // Some relevant variables 
     char buffer;
+    // Instruction counter
     int line_count = 0;
+    // Line counter
     int lines = 0;
 
     // To check whether a comment is in a single line or trailing.
@@ -105,30 +110,34 @@ int first_pass(FILE *file)
                 lines++;
                 break;
             case '(' :
-                fscanf(file, "%s)", string_buffer);
+                fscanf(file, "%s)\n", string_buffer);
                 last_parenthesis = strrchr(string_buffer, ')');
                 *last_parenthesis = '\0';
                 int hashed = hash(string_buffer);
-                if (hash_map[hashed] == 0)
-                {
-                    hash_map[hashed] = line_count;
-                }
+                int val = hash_map[hashed];
+                if (!val) hash_map[hashed] = line_count;
+
+                lines++;
+                break;
             default :
+                // The rest, which might be either broken comments, random data or instructions
+
+                // If broken comment
                 if (last_char == '/' && buffer != '/')
                 {
                     error_s = "Unknown object '/' found";
                     tip = "maybe a comment?";
                     printf("ERROR: %s at line %d (%s)\n", error_s, lines + 1, tip);
                     return_value = 6;
- 
+                    return return_value;
                 }
+
+                line_count++;
+
                 // Exhaust rest of line until a comment is found or a newline
-                else if (buffer != '(') line_count++;
                 while ((buffer = fgetc(file)) != '/' && buffer != '\n' && buffer != EOF);
-                if (buffer != '/' && buffer != EOF) 
-                {
-                    lines++; 
-                }
+
+                if (buffer == '\n') lines++; 
         }
         last_char = buffer;
     }
@@ -143,7 +152,6 @@ int second_pass(FILE *file, struct v *data)
     // Important variables
     int retval = 0;
     fseek(file, 0, SEEK_SET);
-    int empty_ram = 16;
 
     // Some tool variables
     char buffer, last_char;
@@ -203,16 +211,11 @@ int second_pass(FILE *file, struct v *data)
                 bool switch_flag = false;
                 while ((inst_buffer[max] = fgetc(file)) != EOF && max < 64) 
                 {
-                    switch (inst_buffer[max])
+                    if (isspace(inst_buffer[max]))
                     {
-                        case '/' :
-                        case ' ' : 
-                        case '\n' : 
-                        case '\t' :
-                            switch_flag = true;
-                            break;
+                        switch_flag = true;
+                        break;
                     }
-                    if (switch_flag) break;
                     max++;
                 }
                 if (switch_flag) inst_buffer[max] = '\0';
@@ -232,7 +235,8 @@ int second_pass(FILE *file, struct v *data)
                 {
                     int tmp = 0;
                     int stmp = 0;
-                    // If the string isn't a previously parsed label, consider it a new variable
+
+                    hashed = hash(inst_buffer);
 
                     // Check it isn't a predefined label
                     for (int i = 0; i < PREDEFS_COUNT; i++)
@@ -246,11 +250,13 @@ int second_pass(FILE *file, struct v *data)
                         if (tmp <= 16 && tmp >= 0) tmp = 1;
                         else tmp = 0;
                     }
-                    hashed = hash(inst_buffer);
+
+                    // If the label isn't already in the symbol table,
+                    // consider it a variable
                     if (!hash_map[hashed] && !tmp && stmp)
                     {
-                        hash_map[hashed] = empty_ram;
-                        empty_ram++;
+                        hash_map[hashed] = ram_location;
+                        ram_location++;
                     }
 
                     // Convert to binary and write to file
@@ -284,23 +290,7 @@ int second_pass(FILE *file, struct v *data)
                     line_count++; 
                 }
 
-                if (inst_buffer[0] == '(')
-                {
-                    char *otherpar = strrchr(inst_buffer + 1, ')');
-                    *otherpar = '\0';
-                    int hashed = hash(inst_buffer + 1);
-                    if (hash_map[hashed] != 0)
-                    {
-                        ainst = inttob(hash_map[hashed], 16);
-                        fprintf(outfile, "%s\n", ainst);
-                        free(ainst);
-                    }
-                    else
-                    {
-                        hash_map[hashed] = ram_location;
-                        ram_location++;
-                    }
-                }
+                if (inst_buffer[0] == '(');
                 else if (inst_buffer[0] != '\0') 
                 {
                     char *cinstp = cinst(inst_buffer, line_count);
@@ -317,6 +307,6 @@ int second_pass(FILE *file, struct v *data)
     outfile_err:
         retval = 6;
     }
-    printf("Line count: %d, meaningful line count: %d\n", lines, line_count);
+
     return retval;
 }
