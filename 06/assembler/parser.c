@@ -56,11 +56,10 @@ int hash(char *string)
     int i = 0, hash_value = 0;
     for (; string[i] != '\0'; i++)
     {
-        srand(i);
-        hash_value += string[i] * rand();
+        hash_value += string[i];
     }
-    srand(i);
-    hash_value *= rand();
+
+    hash_value %= i;
     hash_value %= MAX_RAM;
     if (hash_value < 0) hash_value = 0 - hash_value;
 
