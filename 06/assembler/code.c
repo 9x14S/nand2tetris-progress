@@ -10,8 +10,8 @@ char *inttob(int num, int width)
         puts("Error: Width provided too small");
         return NULL;
     }
-
-    char *string = malloc(sizeof(char) * width + 1);
+    
+    char *string = malloc(width + 1);
     string[width] = '\0';
     char oneorzero = 0;
 

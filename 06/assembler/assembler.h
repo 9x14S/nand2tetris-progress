@@ -1,5 +1,5 @@
-#include "modules/filevalidation.c"
-#include "modules/parser.c"
+#include "filevalidation.c"
+#include "parser.c"
 
 int extract_filepath(struct v *data, char *filename, int len);
 

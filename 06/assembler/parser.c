@@ -7,8 +7,14 @@
 // The global RAM counter for the variables
 int ram_location = 16;
 
+struct node 
+{
+    int value;
+    struct node *next;
+};
+
 // The symbol table
-int hash_map[sizeof(int) * MAX_RAM];
+struct node *hash_map[sizeof(struct node) * MAX_RAM];
 char *predefs[] = {"SP\0", "LCL\0", "ARG\0", "THIS\0", "THAT\0"};
 int hash(char *string);
 
@@ -29,17 +35,17 @@ void set_defs()
             rams[2] = (char)((i % 10) + '0');
         }
         int index = hash(rams);
-        hash_map[index] = i;
+        hash_map[index]->value = i;
     }
     free(rams);
 
     for (int i = 0; i < PREDEFS_COUNT; i++)
     {
-        hash_map[hash(predefs[i])] = i;
+        hash_map[hash(predefs[i])]->value = i;
     }
 
-    hash_map[hash("SCREEN\0")] = 16384;
-    hash_map[hash("KBD\0")] = MAX_RAM;
+    hash_map[hash("SCREEN\0")]->value = 16384;
+    hash_map[hash("KBD\0")]->value = MAX_RAM;
     return;
 }
 
@@ -114,8 +120,19 @@ int first_pass(FILE *file)
                 last_parenthesis = strrchr(string_buffer, ')');
                 *last_parenthesis = '\0';
                 int hashed = hash(string_buffer);
-                int val = hash_map[hashed];
-                if (!val) hash_map[hashed] = line_count;
+                int val = hash_map[hashed]->value;
+                if (!val) hash_map[hashed]->value = line_count;
+                else 
+                {
+                    for (struct node *next = hash_map[hashed]->next; next != NULL; next = next->next)
+                    {
+                        if (!next->value) 
+                        {
+                            hash_map[hashed]->value = line_count;
+                            break;
+                        }
+                    }
+                }
 
                 lines++;
                 break;
@@ -253,14 +270,26 @@ int second_pass(FILE *file, struct v *data)
 
                     // If the label isn't already in the symbol table,
                     // consider it a variable
-                    if (!hash_map[hashed] && !tmp && stmp)
+                    if (!hash_map[hashed]->value && !tmp && stmp)
                     {
-                        hash_map[hashed] = ram_location;
+                        hash_map[hashed]->value = ram_location;
                         ram_location++;
+                    }
+                    else 
+                    {
+                        for (struct node *next = hash_map[hashed]->next; next != NULL; next = next->next)
+                        {
+                            if (!next->value) 
+                            {
+                                next->value = ram_location;
+                                ram_location++;
+                                break;
+                            }
+                        }
                     }
 
                     // Convert to binary and write to file
-                    ainst = inttob(hash_map[hashed], 16);
+                    ainst = inttob(hash_map[hashed]->value, 16);
                     fprintf(outfile, "%s\n", ainst);
                     free(ainst);
                 }
